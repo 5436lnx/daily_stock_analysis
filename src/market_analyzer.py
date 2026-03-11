@@ -586,7 +586,6 @@ Lagging: {bottom_sectors_text if bottom_sectors_text else "N/A"}"""
                 )
             fund_flow_text = "\n".join(fund_flow_items)
             fund_flow_block = f"## 板块资金流向(按涨幅排序)\n{fund_flow_text}"
-        )
         indices_placeholder = indices_text if indices_text else ("No index data (API error)" if self.region == "us" else "暂无指数数据（接口异常）")
         news_placeholder = news_text if news_text else ("No relevant news" if self.region == "us" else "暂无相关新闻")
 
