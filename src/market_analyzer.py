@@ -579,12 +579,13 @@ Lagging: {bottom_sectors_text if bottom_sectors_text else "N/A"}"""
         if self.region == "cn" and overview.sector_fund_flow:
             fund_flow_items = []
             for s in overview.sector_fund_flow:
-                fund_flow_items.append(f"- {s['name']}: 涨跌幅{s['change_pct']:+.2f}%, 领涨股{s['leader']}({s['leader_change_pct']:+.2f}%), 换手率{s['turnover_rate']:.1f}%")
-            fund_flow_block = "## 板块资金流向(按涨幅排序)\n" + "\n".join(fund_flow_items)
-        data_no_indices_hint = (
-            "注意：由于行情数据获取失败，请主要根据【市场新闻】进行定性分析和总结，不要编造具体的指数点位。"
-            if not indices_text
-            else ""
+                fund_flow_items.append(
+                    f"- {s['name']}: 涨跌幅{s['change_pct']:+.2f}%, "
+                    f"领涨股{s['leader']}({s['leader_change_pct']:+.2f}%), "
+                    f"换手率{s['turnover_rate']:.1f}%"
+                )
+            fund_flow_text = "\n".join(fund_flow_items)
+            fund_flow_block = f"## 板块资金流向(按涨幅排序)\n{fund_flow_text}"
         )
         indices_placeholder = indices_text if indices_text else ("No index data (API error)" if self.region == "us" else "暂无指数数据（接口异常）")
         news_placeholder = news_text if news_text else ("No relevant news" if self.region == "us" else "暂无相关新闻")
