@@ -142,8 +142,17 @@ class MarketAnalyzer:
         if self.profile.has_sector_rankings:
             self._get_sector_rankings(overview)
         
-        # 4. 获取北向资金（可选）
-        # self._get_north_flow(overview)
+        # 4. 获取涨停板详细数据（仅 A 股）
+        if self.region == "cn":
+            self._get_zt_pool_data(overview)
+        
+        # 5. 获取热门股票排行（仅 A 股）
+        if self.region == "cn":
+            self._get_hot_stocks_data(overview)
+        
+        # 6. 获取板块资金流向详情（仅 A 股）
+        if self.region == "cn":
+            self._get_sector_fund_flow(overview)
         
         return overview
 
@@ -224,7 +233,89 @@ class MarketAnalyzer:
 
         except Exception as e:
             logger.error(f"[大盘] 获取板块涨跌榜失败: {e}")
-    
+    def _get_zt_pool_data(self, overview: MarketOverview):
+        """获取涨停板详细数据"""
+        try:
+            from data_provider.akshare_fetcher import AkshareFetcher
+            
+            fetcher = AkshareFetcher()
+            zt_data = fetcher.get_zt_pool()
+            
+            if zt_data:
+                overview.zt_pool = zt_data
+                
+                # 统计首板和连板
+                first_board = 0
+                max_lianban = 0
+                max_lianban_stock = ""
+                
+                for stock in zt_data:
+                    lb = stock.get('lianban', 0)
+                    if lb == 0 or lb == 1:
+                        first_board += 1
+                    if lb > max_lianban:
+                        max_lianban = lb
+                        max_lianban_stock = stock.get('name', '')
+                
+                overview.first_board_count = first_board
+                overview.highest_lianban = max_lianban
+                overview.highest_lianban_stock = max_lianban_stock
+                
+                # 连板梯队统计
+                lianban_dict = {}
+                for stock in zt_data:
+                    lb = stock.get('lianban', 0)
+                    if lb >= 2:  # 2连板及以上
+                        key = f"{lb}连板"
+                        if key not in lianban_dict:
+                            lianban_dict[key] = []
+                        lianban_dict[key].append(stock.get('name', ''))
+                
+                overview.lianban_tianti = [
+                    {'level': k, 'stocks': v[:5]}  # 每层最多5只
+                    for k, v in sorted(lianban_dict.items(), key=lambda x: int(x[0].replace('连板','')), reverse=True)
+                ]
+                
+                logger.info(f"[大盘] 涨停板: {len(zt_data)}只, 首板: {first_board}, 最高: {max_lianban}连板({max_lianban_stock})")
+            else:
+                logger.warning("[大盘] 获取涨停板数据失败")
+                
+        except Exception as e:
+            logger.error(f"[大盘] 获取涨停板数据失败: {e}")
+
+    def _get_hot_stocks_data(self, overview: MarketOverview):
+        """获取热门股票排行"""
+        try:
+            from data_provider.akshare_fetcher import AkshareFetcher
+            
+            fetcher = AkshareFetcher()
+            hot_data = fetcher.get_hot_stocks(limit=10)
+            
+            if hot_data:
+                overview.hot_stocks = hot_data
+                logger.info(f"[大盘] 热门股票: {len(hot_data)}只")
+            else:
+                logger.warning("[大盘] 获取热门股票数据失败")
+                
+        except Exception as e:
+            logger.error(f"[大盘] 获取热门股票数据失败: {e}")
+
+    def _get_sector_fund_flow(self, overview: MarketOverview):
+        """获取板块资金流向详情"""
+        try:
+            from data_provider.akshare_fetcher import AkshareFetcher
+            
+            fetcher = AkshareFetcher()
+            sector_data = fetcher.get_sector_detail(limit=5)
+            
+            if sector_data:
+                overview.sector_fund_flow = sector_data
+                logger.info(f"[大盘] 板块资金流向: {len(sector_data)}个板块")
+            else:
+                logger.warning("[大盘] 获取板块资金流向失败")
+                
+        except Exception as e:
+            logger.error(f"[大盘] 获取板块资金流向失败: {e}")
     # def _get_north_flow(self, overview: MarketOverview):
     #     """获取北向资金流入"""
     #     try:
@@ -466,7 +557,30 @@ Lagging: {bottom_sectors_text if bottom_sectors_text else "N/A"}"""
 领跌: {bottom_sectors_text if bottom_sectors_text else "暂无数据"}"""
             else:
                 sector_block = "## 板块表现\n（美股暂无板块涨跌数据）"
+# 涨停板数据格式化
+        zt_block = ""
+        if self.region == "cn" and overview.zt_pool:
+            lianban_text = ", ".join([f"{d['level']}({','.join(d['stocks'])})" for d in overview.lianban_tianti[:4]]) if overview.lianban_tianti else "暂无"
+            zt_block = f"""## 涨停板分析
+- 涨停家数: {len(overview.zt_pool)} 只
+- 首板涨停: {overview.first_board_count} 只
+- 最高连板: {overview.highest_lianban}连板 ({overview.highest_lianban_stock})
+- 连板梯队: {lianban_text}"""
 
+        # 热门股票数据格式化
+        hot_block = ""
+        if self.region == "cn" and overview.hot_stocks:
+            hot_list = [f"{s['name']}({s['code']})" for s in overview.hot_stocks[:10]]
+            hot_block = f"""## 热门股票Top10
+{', '.join(hot_list)}"""
+
+        # 板块资金流向格式化
+        fund_flow_block = ""
+        if self.region == "cn" and overview.sector_fund_flow:
+            fund_flow_items = []
+            for s in overview.sector_fund_flow:
+                fund_flow_items.append(f"- {s['name']}: 涨跌幅{s['change_pct']:+.2f}%, 领涨股{s['leader']}({s['leader_change_pct']:+.2f}%), 换手率{s['turnover_rate']:.1f}%")
+            fund_flow_block = "## 板块资金流向(按涨幅排序)\n" + "\n".join(fund_flow_items)
         data_no_indices_hint = (
             "注意：由于行情数据获取失败，请主要根据【市场新闻】进行定性分析和总结，不要编造具体的指数点位。"
             if not indices_text
