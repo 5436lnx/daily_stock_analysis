@@ -70,13 +70,23 @@ class MarketOverview:
     limit_up_count: int = 0             # 涨停家数
     limit_down_count: int = 0           # 跌停家数
     total_amount: float = 0.0           # 两市成交额（亿元）
-    # north_flow: float = 0.0           # 北向资金净流入（亿元）- 已废弃，接口不可用
+    
+    # 新增：涨停板详细数据
+    first_board_count: int = 0           # 首板涨停家数
+    zt_pool: List[Dict] = field(default_factory=list)  # 涨停板股票列表
+    highest_lianban: int = 0            # 最高连板数
+    highest_lianban_stock: str = ""     # 最高连板个股名称
+    lianban_tianti: List[Dict] = field(default_factory=list)  # 连板梯队
+    
+    # 新增：板块资金流向
+    sector_fund_flow: List[Dict] = field(default_factory=list)  # 板块资金流向详情
+    
+    # 新增：热门股票
+    hot_stocks: List[Dict] = field(default_factory=list)  # 最热前10个股
     
     # 板块涨幅榜
     top_sectors: List[Dict] = field(default_factory=list)     # 涨幅前5板块
     bottom_sectors: List[Dict] = field(default_factory=list)  # 跌幅前5板块
-
-
 class MarketAnalyzer:
     """
     大盘复盘分析器
