@@ -1771,7 +1771,101 @@ class AkshareFetcher(BaseFetcher):
         except Exception as e:
             logger.error(f"[Akshare] 新浪接口获取板块排行也失败: {e}")
             return None
+def get_zt_pool(self, date=None):
+        """获取涨停板数据"""
+        import akshare as ak
+        if date is None:
+            date = datetime.now().strftime('%Y%m%d')
+        try:
+            self._set_random_user_agent()
+            self._enforce_rate_limit()
+            logger.info(f"[API调用] ak.stock_zt_pool_em(date={date}) 获取涨停板...")
+            df = ak.stock_zt_pool_em(date=date)
+            if df is not None and not df.empty:
+                results = []
+                for _, row in df.iterrows():
+                    results.append({
+                        'code': str(row.get('代码', '')),
+                        'name': str(row.get('名称', '')),
+                        'change_pct': float(row.get('涨跌幅', 0)),
+                        'price': float(row.get('最新价', 0)),
+                        'amount': float(row.get('成交额', 0)),
+                        'turnover_rate': float(row.get('换手率', 0)),
+                        'first_time': str(row.get('首次封板时间', '')),
+                        'last_time': str(row.get('最后封板时间', '')),
+                        'break_count': int(row.get('炸板次数', 0)),
+                        'zt_count': str(row.get('涨停统计', '')),
+                        'lianban': int(row.get('连板数', 0)),
+                        'sector': str(row.get('所属行业', '')),
+                    })
+                logger.info(f"[Akshare] 获取涨停板成功: {len(results)} 只")
+                return results
+        except Exception as e:
+            logger.error(f"[Akshare] 获取涨停板失败: {e}")
+        return None
 
+    def get_hot_stocks(self, limit=10):
+        """获取热门股票排行"""
+        import akshare as ak
+        try:
+            self._set_random_user_agent()
+            self._enforce_rate_limit()
+            logger.info("[API调用] ak.stock_hot_rank_em() 获取热门股票...")
+            df = ak.stock_hot_rank_em()
+            if df is not None and not df.empty:
+                results = []
+                for i, row in df.head(limit).iterrows():
+                    code = str(row.get('代码', ''))
+                    if code.startswith('SH'):
+                        code = code[2:]
+                    elif code.startswith('SZ'):
+                        code = code[2:]
+                    results.append({
+                        'rank': int(row.get('当前排名', i + 1)),
+                        'code': code,
+                        'name': str(row.get('股票名称', '')),
+                        'price': float(row.get('最新价', 0)),
+                        'change': float(row.get('涨跌额', 0)),
+                        'change_pct': float(row.get('涨跌幅', 0)),
+                    })
+                logger.info(f"[Akshare] 获取热门股票成功: {len(results)} 只")
+                return results
+        except Exception as e:
+            logger.error(f"[Akshare] 获取热门股票失败: {e}")
+        return None
+
+    def get_sector_detail(self, limit=5):
+        """获取板块涨幅排行详情（含领涨个股、资金流向）"""
+        import akshare as ak
+        try:
+            self._set_random_user_agent()
+            self._enforce_rate_limit()
+            logger.info("[API调用] ak.stock_board_concept_name_em() 获取概念板块...")
+            df = ak.stock_board_concept_name_em()
+            if df is not None and not df.empty:
+                for col in ['涨跌额', '涨跌幅']:
+                    if col in df.columns:
+                        df[col] = pd.to_numeric(df[col], errors='coerce')
+                df = df.dropna(subset=['涨跌幅'])
+                top_sectors = df.nlargest(limit, '涨跌幅')
+                results = []
+                for _, row in top_sectors.iterrows():
+                    results.append({
+                        'name': str(row.get('板块名称', '')),
+                        'code': str(row.get('板块代码', '')),
+                        'change_pct': float(row.get('涨跌幅', 0)),
+                        'total_market': float(row.get('总市值', 0)),
+                        'turnover_rate': float(row.get('换手率', 0)),
+                        'up_count': int(row.get('上涨家数', 0)),
+                        'down_count': int(row.get('下跌家数', 0)),
+                        'leader': str(row.get('领涨股票', '')),
+                        'leader_change_pct': float(row.get('领涨股票-涨跌幅', 0) or 0),
+                    })
+                logger.info(f"[Akshare] 获取板块详情成功: {len(results)} 个板块")
+                return results
+        except Exception as e:
+            logger.error(f"[Akshare] 获取板块详情失败: {e}")
+        return None
 
 if __name__ == "__main__":
     # 测试代码
