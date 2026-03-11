@@ -680,6 +680,13 @@ Output the report content directly, no extra commentary.
 
 {sector_block}
 
+{zt_block}
+
+{fund_flow_block}
+
+{hot_b
+...(truncated)...
+
 ## 市场新闻
 {news_placeholder}
 
