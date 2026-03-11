@@ -596,135 +596,84 @@ Lagging: {bottom_sectors_text if bottom_sectors_text else "N/A"}"""
                 if not indices_text
                 else ""
             )
-            return f"""You are a professional US/A/H market analyst. Please produce a concise US market recap report based on the data below.
+            H = "#"
+            return (
+                f"You are a professional US/A/H market analyst. Please produce a concise US market recap report based on the data below.\n\n"
+                f"[Requirements]\n"
+                f"- Output pure Markdown only\n"
+                f"- No JSON\n"
+                f"- No code blocks\n"
+                f"- Use emoji sparingly in headings (at most one per heading)\n\n"
+                f"---\n\n"
+                f"{H} Today's Market Data\n\n"
+                f"{H}{H} Date\n{overview.date}\n\n"
+                f"{H}{H} Major Indices\n{indices_placeholder}\n\n"
+                f"{stats_block}\n\n"
+                f"{sector_block}\n\n"
+                f"{H}{H} Market News\n{news_placeholder}\n\n"
+                f"{data_no_indices_hint_en}\n\n"
+                f"{self.strategy.to_prompt_block()}\n\n"
+                f"---\n\n"
+                f"{H} Output Template (follow this structure)\n\n"
+                f"{H}{H} {overview.date} US Market Recap\n\n"
+                f"{H}{H}{H} 1. Market Summary\n"
+                f"(2-3 sentences on overall market performance, index moves, volume)\n\n"
+                f"{H}{H}{H} 2. Index Commentary\n"
+                f"(Analyse S&P 500, Nasdaq, Dow and other major index moves.)\n\n"
+                f"{H}{H}{H} 3. Fund Flows\n"
+                f"(Interpret volume and flow implications)\n\n"
+                f"{H}{H}{H} 4. Sector/Theme Highlights\n"
+                f"(Analyze drivers behind leading/lagging sectors)\n\n"
+                f"{H}{H}{H} 5. Outlook\n"
+                f"(Short-term view based on price action and news)\n\n"
+                f"{H}{H}{H} 6. Risk Alerts\n"
+                f"(Key risks to watch)\n\n"
+                f"{H}{H}{H} 7. Strategy Plan\n"
+                f"(Provide risk-on/neutral/risk-off stance, position sizing guideline, and one invalidation trigger.)\n\n"
+                f"---\n\n"
+                f"Output the report content directly, no extra commentary.\n"
+            )
 
-[Requirements]
-- Output pure Markdown only
-- No JSON
-- No code blocks
-- Use emoji sparingly in headings (at most one per heading)
-
----
-
-# Today's Market Data
-
-## Date
-{overview.date}
-
-## Major Indices
-{indices_placeholder}
-
-{stats_block}
-
-{sector_block}
-
-## Market News
-{news_placeholder}
-
-{data_no_indices_hint_en}
-
-{self.strategy.to_prompt_block()}
-
----
-
-# Output Template (follow this structure)
-
-## {overview.date} US Market Recap
-
-### 1. Market Summary
-(2-3 sentences on overall market performance, index moves, volume)
-
-### 2. Index Commentary
-(Analyse S&P 500, Nasdaq, Dow and other major index moves.)
-
-### 3. Fund Flows
-(Interpret volume and flow implications)
-
-### 4. Sector/Theme Highlights
-(Analyze drivers behind leading/lagging sectors)
-
-### 5. Outlook
-(Short-term view based on price action and news)
-
-### 6. Risk Alerts
-(Key risks to watch)
-
-### 7. Strategy Plan
-(Provide risk-on/neutral/risk-off stance, position sizing guideline, and one invalidation trigger.)
-
----
-
-Output the report content directly, no extra commentary.
-"""
-
-        # A 股场景使用中文提示语
-        return f"""你是一位专业的A/H/美股市场分析师，请根据以下数据生成一份简洁的大盘复盘报告。
-
-【重要】输出要求：
-- 必须输出纯 Markdown 文本格式
-- 禁止输出 JSON 格式
-- 禁止输出代码块
-- emoji 仅在标题处少量使用（每个标题最多1个）
-
----
-
-# 今日市场数据
-
-## 日期
-{overview.date}
-
-## 主要指数
-{indices_placeholder}
-
-{stats_block}
-
-{sector_block}
-
-{zt_block}
-
-{fund_flow_block}
-
-{hot_b
-...(truncated)...
-
-## 市场新闻
-{news_placeholder}
-
-{data_no_indices_hint}
-
-{self.strategy.to_prompt_block()}
-
----
-
-# 输出格式模板（请严格按此格式输出）
-
-## {overview.date} 大盘复盘
-
-### 一、市场总结
-（2-3句话概括今日市场整体表现，包括指数涨跌、成交量变化）
-
-### 二、指数点评
-（{self.profile.prompt_index_hint}）
-
-### 三、资金动向
-（解读成交额流向的含义）
-
-### 四、热点解读
-（分析领涨领跌板块背后的逻辑和驱动因素）
-
-### 五、后市展望
-（结合当前走势和新闻，给出明日市场预判）
-
-### 六、风险提示
-（需要关注的风险点）
-
-### 七、策略计划
-（给出进攻/均衡/防守结论，对应仓位建议，并给出一个触发失效条件；最后补充“建议仅供参考，不构成投资建议”。）
-
----
-
-请直接输出复盘报告内容，不要输出其他说明文字。
-"""
+        H = "#"
+        return (
+            f"你是一位专业的A/H/美股市场分析师，请根据以下数据生成一份简洁的大盘复盘报告。\n\n"
+            f"【重要】输出要求：\n"
+            f"- 必须输出纯 Markdown 文本格式\n"
+            f"- 禁止输出 JSON 格式\n"
+            f"- 禁止输出代码块\n"
+            f"- emoji 仅在标题处少量使用（每个标题最多1个）\n\n"
+            f"---\n\n"
+            f"{H} 今日市场数据\n\n"
+            f"{H}{H} 日期\n{overview.date}\n\n"
+            f"{H}{H} 主要指数\n{indices_placeholder}\n\n"
+            f"{stats_block}\n\n"
+            f"{sector_block}\n\n"
+            f"{zt_block}\n\n"
+            f"{fund_flow_block}\n\n"
+            f"{hot_block}\n\n"
+            f"{H}{H} 市场新闻\n{news_placeholder}\n\n"
+            f"{data_no_indices_hint}\n\n"
+            f"{self.strategy.to_prompt_block()}\n\n"
+            f"---\n\n"
+            f"{H} 输出格式模板（请严格按此格式输出）\n\n"
+            f"{H}{H} {overview.date} 大盘复盘\n\n"
+            f"{H}{H}{H} 一、市场总结\n"
+            f"（2-3句话概括今日市场整体表现，包括指数涨跌、成交量变化）\n\n"
+            f"{H}{H}{H} 二、指数点评\n"
+            f"（{self.profile.prompt_index_hint}）\n\n"
+            f"{H}{H}{H} 三、资金动向\n"
+            f"（解读成交额流向的含义）\n\n"
+            f"{H}{H}{H} 四、热点解读\n"
+            f"（分析领涨领跌板块背后的逻辑和驱动因素）\n\n"
+            f"{H}{H}{H} 五、后市展望\n"
+            f"（结合当前走势和新闻，给出明日市场预判）\n\n"
+            f"{H}{H}{H} 六、风险提示\n"
+            f"（需要关注的风险点）\n\n"
+            f"{H}{H}{H} 七、策略计划\n"
+            f"（给出进攻/均衡/防守结论，对应仓位建议，并给出一个触发失效条件；最后补充\"建议仅供参考，不构成投资建议\"。）\n\n"
+            f"---\n\n"
+            f"请直接输出复盘报告内容，不要输出其他说明文字。\n"
+        )
     
     def _generate_template_review(self, overview: MarketOverview, news: List) -> str:
         """使用模板生成复盘报告（无大模型时的备选方案）"""
