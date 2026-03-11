@@ -1804,7 +1804,7 @@ def get_zt_pool(self, date=None):
             logger.error(f"[Akshare] 获取涨停板失败: {e}")
         return None
 
-    def get_hot_stocks(self, limit=10):
+def get_hot_stocks(self, limit=10):
         """获取热门股票排行"""
         import akshare as ak
         try:
