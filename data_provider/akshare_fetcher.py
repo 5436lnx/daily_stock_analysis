@@ -1771,7 +1771,7 @@ class AkshareFetcher(BaseFetcher):
         except Exception as e:
             logger.error(f"[Akshare] 新浪接口获取板块排行也失败: {e}")
             return None
-def get_zt_pool(self, date=None):
+    def get_zt_pool(self, date=None):
         """获取涨停板数据"""
         import akshare as ak
         if date is None:
@@ -1804,7 +1804,7 @@ def get_zt_pool(self, date=None):
             logger.error(f"[Akshare] 获取涨停板失败: {e}")
         return None
 
-def get_hot_stocks(self, limit=10):
+    def get_hot_stocks(self, limit=10):
         """获取热门股票排行"""
         import akshare as ak
         try:
