@@ -144,11 +144,16 @@ def get_market_data():
                 recent['close'].tolist()
             ))
             if 'amount' in df.columns:
+                sample_val = float(df.iloc[-1]['amount'])
+                # 新浪财经 amount 单位为元，东方财富为元，统一不做转换
+                print(f"[DEBUG] {name} amount sample={sample_val:.0f}", file=sys.stderr)
                 amt_by_index[name] = list(zip(
                     recent['date'].astype(str).tolist(),
                     recent['amount'].tolist()
                 ))
             elif 'volume' in df.columns:
+                sample_val = float(df.iloc[-1]['volume'])
+                print(f"[DEBUG] {name} volume sample={sample_val:.0f}", file=sys.stderr)
                 amt_by_index[name] = list(zip(
                     recent['date'].astype(str).tolist(),
                     recent['volume'].tolist()
