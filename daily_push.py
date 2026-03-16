@@ -154,37 +154,32 @@ def get_market_data():
             print(f"获取{name}失败: {e}", file=sys.stderr)
 
     # ── 1b. 全市场成交额（近7日）─────────────────────
-    # 用新浪财经上证综指历史数据（stock_zh_index_daily），amount字段为沪市成交额（元）
-    # 再加深证成指 amount，近似全市场（误差约北交所 ~1%）
+    # 用 stock_zh_index_daily_tx（腾讯财经）获取上证/深证成交额，单位：元
     try:
-        sh_df = ak.stock_zh_index_daily(symbol='sh000001').sort_values('date').tail(10)
-        sz_df = ak.stock_zh_index_daily(symbol='sz399001').sort_values('date').tail(10)
-        # 新浪指数 amount 单位是元
-        sh_amt_col = 'amount' if 'amount' in sh_df.columns else None
-        sz_amt_col = 'amount' if 'amount' in sz_df.columns else None
-        print(f"[DEBUG] sh cols: {sh_df.columns.tolist()}, sample amount: {float(sh_df.iloc[-1][sh_amt_col]) if sh_amt_col else 'N/A'}", file=sys.stderr)
-        print(f"[DEBUG] sz cols: {sz_df.columns.tolist()}, sample amount: {float(sz_df.iloc[-1][sz_amt_col]) if sz_amt_col else 'N/A'}", file=sys.stderr)
+        sh_df = ak.stock_zh_index_daily_tx(symbol='sh000001').sort_values('date').tail(10)
+        sz_df = ak.stock_zh_index_daily_tx(symbol='sz399001').sort_values('date').tail(10)
+        print(f"[DEBUG] tx sh cols: {sh_df.columns.tolist()}", file=sys.stderr)
+        print(f"[DEBUG] tx sh sample:\n{sh_df.tail(2).to_string()}", file=sys.stderr)
+        sh_amt_col = 'amount' if 'amount' in sh_df.columns else ('turnover' if 'turnover' in sh_df.columns else None)
+        sz_amt_col = 'amount' if 'amount' in sz_df.columns else ('turnover' if 'turnover' in sz_df.columns else None)
         if sh_amt_col and sz_amt_col:
-            # 取共同日期
             sh_map = {str(r['date']): float(r[sh_amt_col]) for _, r in sh_df.iterrows()}
             sz_map = {str(r['date']): float(r[sz_amt_col]) for _, r in sz_df.iterrows()}
             common_dates = sorted(set(sh_map) & set(sz_map))[-7:]
             market_amount = [(d, sh_map[d] + sz_map[d]) for d in common_dates]
-            print(f"[DEBUG] market_amount[-1]: {market_amount[-1]}", file=sys.stderr)
+            print(f"[DEBUG] market_amount sample: {market_amount[-1] if market_amount else 'empty'}", file=sys.stderr)
     except Exception as e:
-        print(f"获取全市场成交额失败: {e}", file=sys.stderr)
+        print(f"获取全市场成交额失败(tx): {e}", file=sys.stderr)
 
-    # 如果新浪也不行，用 efinance 接口（不依赖东方财富爬虫）
+    # 降级：直接请求新浪财经 A 股总成交额数据
     if not market_amount:
         try:
-            import efinance as ef
-            df_sh = ef.stock.get_quote_history('sh000001', klt=101)
-            df_sz = ef.stock.get_quote_history('sz399001', klt=101)
-            df_sh = df_sh.tail(10)
-            df_sz = df_sz.tail(10)
-            print(f"[DEBUG] ef sh cols: {df_sh.columns.tolist()}", file=sys.stderr)
+            # stock_sse_deal_daily 上交所每日成交统计，单位：万元
+            df_sse = ak.stock_sse_deal_daily(date=today)
+            df_szse = ak.stock_szse_history(date=today)
+            print(f"[DEBUG] sse cols: {df_sse.columns.tolist()}\n{df_sse.head(3).to_string()}", file=sys.stderr)
         except Exception as e:
-            print(f"efinance 降级失败: {e}", file=sys.stderr)
+            print(f"降级接口失败: {e}", file=sys.stderr)
 
     # ── 2. 涨停板数据 ─────────────────────────────────
     zt_count = 0
