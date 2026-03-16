@@ -123,9 +123,20 @@ def get_market_data():
     amt_by_index = {}  # {name: [(date_str, amount), ...]}  用于成交额
     sh_change = sz_change = cy_change = 0.0
 
+    # 新浪财经 symbol 映射
+    sina_symbol_map = {
+        'sh000001': 'sh000001',
+        'sz399001': 'sz399001',
+        'sz399006': 'sz399006',
+    }
+
     for code, name in index_configs:
         try:
-            df = ak.stock_zh_index_daily_em(symbol=code)
+            # 优先用新浪财经数据源（GitHub Actions 可访问）
+            try:
+                df = ak.stock_zh_index_daily(symbol=sina_symbol_map.get(code, code))
+            except Exception:
+                df = ak.stock_zh_index_daily_em(symbol=code)
             df = df.sort_values('date').reset_index(drop=True)
             recent = df.tail(7)
             index_7d[name] = list(zip(
@@ -136,6 +147,11 @@ def get_market_data():
                 amt_by_index[name] = list(zip(
                     recent['date'].astype(str).tolist(),
                     recent['amount'].tolist()
+                ))
+            elif 'volume' in df.columns:
+                amt_by_index[name] = list(zip(
+                    recent['date'].astype(str).tolist(),
+                    recent['volume'].tolist()
                 ))
             # 今日涨跌幅
             if len(df) >= 2:
