@@ -143,21 +143,7 @@ def get_market_data():
                 recent['date'].astype(str).tolist(),
                 recent['close'].tolist()
             ))
-            if 'amount' in df.columns:
-                sample_val = float(df.iloc[-1]['amount'])
-                # 新浪财经 amount 单位为元，东方财富为元，统一不做转换
-                print(f"[DEBUG] {name} amount sample={sample_val:.0f}", file=sys.stderr)
-                amt_by_index[name] = list(zip(
-                    recent['date'].astype(str).tolist(),
-                    recent['amount'].tolist()
-                ))
-            elif 'volume' in df.columns:
-                sample_val = float(df.iloc[-1]['volume'])
-                print(f"[DEBUG] {name} volume sample={sample_val:.0f}", file=sys.stderr)
-                amt_by_index[name] = list(zip(
-                    recent['date'].astype(str).tolist(),
-                    recent['volume'].tolist()
-                ))
+            # 指数数据只用于涨跌幅，不用于成交额统计
             # 今日涨跌幅
             if len(df) >= 2:
                 pct = (df.iloc[-1]['close'] - df.iloc[-2]['close']) / df.iloc[-2]['close'] * 100
@@ -168,40 +154,36 @@ def get_market_data():
             print(f"获取{name}失败: {e}", file=sys.stderr)
 
     # ── 1b. 全市场成交额（近7日）─────────────────────
+    # 用上证综指历史数据获取全市场成交额（amount 字段，单位：元）
+    # ak.index_zh_a_hist 返回上证所有股票的成交额汇总
     try:
-        # stock_market_activity_legu 返回沪深北全市场成交额，单位：元
-        df_mkt = ak.stock_market_activity_legu()
+        end_date = datetime.datetime.now().strftime("%Y%m%d")
+        start_date = (datetime.datetime.now() - datetime.timedelta(days=14)).strftime("%Y%m%d")
+        df_mkt = ak.index_zh_a_hist(symbol="000001", period="daily",
+                                     start_date=start_date, end_date=end_date)
+        print(f"[DEBUG] index_zh_a_hist columns: {df_mkt.columns.tolist()}", file=sys.stderr)
+        print(f"[DEBUG] sample:\n{df_mkt.tail(3).to_string()}", file=sys.stderr)
         if df_mkt is not None and not df_mkt.empty:
-            # 列名通常是 '日期' 和 '成交额'
             date_col = [c for c in df_mkt.columns if '日期' in c or 'date' in c.lower()]
-            amt_col  = [c for c in df_mkt.columns if '成交' in c or 'amount' in c.lower() or '额' in c]
-            print(f"[DEBUG] market_activity columns: {df_mkt.columns.tolist()}", file=sys.stderr)
-            print(f"[DEBUG] market_activity sample:\n{df_mkt.tail(3).to_string()}", file=sys.stderr)
+            amt_col  = [c for c in df_mkt.columns if '成交额' in c or 'amount' in c.lower()]
             if date_col and amt_col:
                 recent7 = df_mkt.tail(7)
                 market_amount = list(zip(
                     recent7[date_col[0]].astype(str).tolist(),
                     recent7[amt_col[0]].tolist()
                 ))
+                print(f"[DEBUG] market_amount sample: {market_amount[-1]}", file=sys.stderr)
     except Exception as e:
-        print(f"获取全市场成交额失败: {e}", file=sys.stderr)
+        print(f"获取全市场成交额失败(index_zh_a_hist): {e}", file=sys.stderr)
 
-    # 若全市场接口失败，降级用沪深指数成交额累加
+    # 降级：用东方财富全市场概况接口
     if not market_amount:
         try:
-            sh_df = ak.stock_zh_index_daily(symbol='sh000001')
-            sz_df = ak.stock_zh_index_daily(symbol='sz399001')
-            sh_df = sh_df.sort_values('date').tail(7)
-            sz_df = sz_df.sort_values('date').tail(7)
-            amt_col_sh = 'amount' if 'amount' in sh_df.columns else 'volume'
-            amt_col_sz = 'amount' if 'amount' in sz_df.columns else 'volume'
-            dates = sh_df['date'].astype(str).tolist()
-            # 沪深成交额单位为元，直接相加（注意：这仍是近似值，不含北交所）
-            total = [float(a) + float(b) for a, b in zip(sh_df[amt_col_sh], sz_df[amt_col_sz])]
-            market_amount = list(zip(dates, total))
-            print(f"[DEBUG] fallback market_amount sample: {market_amount[-1]}", file=sys.stderr)
+            df_mkt2 = ak.stock_market_activity_legu()
+            print(f"[DEBUG] legu columns: {df_mkt2.columns.tolist()}", file=sys.stderr)
+            print(f"[DEBUG] legu sample:\n{df_mkt2.to_string()}", file=sys.stderr)
         except Exception as e:
-            print(f"获取成交额降级失败: {e}", file=sys.stderr)
+            print(f"降级接口也失败: {e}", file=sys.stderr)
 
     # ── 2. 涨停板数据 ─────────────────────────────────
     zt_count = 0
