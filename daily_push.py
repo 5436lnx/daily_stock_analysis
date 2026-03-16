@@ -120,7 +120,7 @@ def get_market_data():
         ('sz399006', '创业板指'),
     ]
     index_7d = {}    # {name: [(date_str, close), ...]}
-    amt_by_index = {}  # {name: [(date_str, amount), ...]}  用于成交额
+    market_amount = []  # [(date_str, total_amount_元), ...]  全市场成交额
     sh_change = sz_change = cy_change = 0.0
 
     # 新浪财经 symbol 映射
@@ -166,6 +166,42 @@ def get_market_data():
                 elif name == '创业板指': cy_change = pct
         except Exception as e:
             print(f"获取{name}失败: {e}", file=sys.stderr)
+
+    # ── 1b. 全市场成交额（近7日）─────────────────────
+    try:
+        # stock_market_activity_legu 返回沪深北全市场成交额，单位：元
+        df_mkt = ak.stock_market_activity_legu()
+        if df_mkt is not None and not df_mkt.empty:
+            # 列名通常是 '日期' 和 '成交额'
+            date_col = [c for c in df_mkt.columns if '日期' in c or 'date' in c.lower()]
+            amt_col  = [c for c in df_mkt.columns if '成交' in c or 'amount' in c.lower() or '额' in c]
+            print(f"[DEBUG] market_activity columns: {df_mkt.columns.tolist()}", file=sys.stderr)
+            print(f"[DEBUG] market_activity sample:\n{df_mkt.tail(3).to_string()}", file=sys.stderr)
+            if date_col and amt_col:
+                recent7 = df_mkt.tail(7)
+                market_amount = list(zip(
+                    recent7[date_col[0]].astype(str).tolist(),
+                    recent7[amt_col[0]].tolist()
+                ))
+    except Exception as e:
+        print(f"获取全市场成交额失败: {e}", file=sys.stderr)
+
+    # 若全市场接口失败，降级用沪深指数成交额累加
+    if not market_amount:
+        try:
+            sh_df = ak.stock_zh_index_daily(symbol='sh000001')
+            sz_df = ak.stock_zh_index_daily(symbol='sz399001')
+            sh_df = sh_df.sort_values('date').tail(7)
+            sz_df = sz_df.sort_values('date').tail(7)
+            amt_col_sh = 'amount' if 'amount' in sh_df.columns else 'volume'
+            amt_col_sz = 'amount' if 'amount' in sz_df.columns else 'volume'
+            dates = sh_df['date'].astype(str).tolist()
+            # 沪深成交额单位为元，直接相加（注意：这仍是近似值，不含北交所）
+            total = [float(a) + float(b) for a, b in zip(sh_df[amt_col_sh], sz_df[amt_col_sz])]
+            market_amount = list(zip(dates, total))
+            print(f"[DEBUG] fallback market_amount sample: {market_amount[-1]}", file=sys.stderr)
+        except Exception as e:
+            print(f"获取成交额降级失败: {e}", file=sys.stderr)
 
     # ── 2. 涨停板数据 ─────────────────────────────────
     zt_count = 0
@@ -241,7 +277,7 @@ def get_market_data():
 
     return {
         'index_7d': index_7d,
-        'amt_by_index': amt_by_index,
+        'market_amount': market_amount,
         'sh_change': sh_change,
         'sz_change': sz_change,
         'cy_change': cy_change,
@@ -281,32 +317,25 @@ def build_index_table(index_7d):
     return "\n".join([header, sep] + rows)
 
 
-def build_volume_table(amt_by_index):
-    """动态生成成交额近7日表（沪+深）"""
-    sh_data = amt_by_index.get('上证指数', [])
-    sz_data = amt_by_index.get('深证成指', [])
-    if not sh_data or not sz_data:
+def build_volume_table(market_amount):
+    """动态生成全市场成交额近7日表（一行合计）"""
+    if not market_amount:
         return "_(成交额数据暂不可用)_"
 
-    n = min(len(sh_data), len(sz_data), 7)
-    dates   = [str(d)[5:] for d, _ in sh_data[-n:]]
-    sh_amts = [a for _, a in sh_data[-n:]]
-    sz_amts = [a for _, a in sz_data[-n:]]
+    n = min(len(market_amount), 7)
+    data = market_amount[-n:]
+    dates = [str(d)[5:] for d, _ in data]
+    amts  = [a for _, a in data]
 
-    def row(label, vals):
-        cells = []
-        for i, v in enumerate(vals):
-            s = fmt_amount(v)
-            cells.append(f"**{s}**" if i == len(vals) - 1 else s)
-        return f"| {label} | " + " | ".join(cells) + " |"
+    cells = []
+    for i, v in enumerate(amts):
+        s = fmt_amount(v)
+        cells.append(f"**{s}**" if i == len(amts) - 1 else s)
 
-    total_amts = [sh + sz for sh, sz in zip(sh_amts, sz_amts)]
     header = "| 市场 | " + " | ".join(dates) + " |"
     sep    = "|------|" + "-------|" * n
-    return "\n".join([header, sep,
-                      row("沪市", sh_amts),
-                      row("深市", sz_amts),
-                      row("合计", total_amts)])
+    row    = "| 全市场 | " + " | ".join(cells) + " |"
+    return "\n".join([header, sep, row])
 
 
 def build_lb_ladder(lb_data, max_lb):
@@ -345,7 +374,7 @@ def send_notification(data):
     max_stocks_str = "、".join(data['max_stocks']) if data['max_stocks'] else "无"
 
     index_table  = build_index_table(data['index_7d'])
-    volume_table = build_volume_table(data['amt_by_index'])
+    volume_table = build_volume_table(data['market_amount'])
     lb_ladder    = build_lb_ladder(data['lb_data'], data['max_lb'])
     summary      = build_summary(data)
     industry_tbl = data['industry_table'] or "_(暂无数据)_"
