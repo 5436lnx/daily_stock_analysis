@@ -163,11 +163,12 @@ def get_market_data():
         sh_amt_col = 'amount' if 'amount' in sh_df.columns else ('turnover' if 'turnover' in sh_df.columns else None)
         sz_amt_col = 'amount' if 'amount' in sz_df.columns else ('turnover' if 'turnover' in sz_df.columns else None)
         if sh_amt_col and sz_amt_col:
-            sh_map = {str(r['date']): float(r[sh_amt_col]) for _, r in sh_df.iterrows()}
-            sz_map = {str(r['date']): float(r[sz_amt_col]) for _, r in sz_df.iterrows()}
+            # 腾讯财经 amount 单位为万元，乘以10000转为元
+            sh_map = {str(r['date']): float(r[sh_amt_col]) * 10000 for _, r in sh_df.iterrows()}
+            sz_map = {str(r['date']): float(r[sz_amt_col]) * 10000 for _, r in sz_df.iterrows()}
             common_dates = sorted(set(sh_map) & set(sz_map))[-7:]
             market_amount = [(d, sh_map[d] + sz_map[d]) for d in common_dates]
-            print(f"[DEBUG] market_amount sample: {market_amount[-1] if market_amount else 'empty'}", file=sys.stderr)
+            print(f"[DEBUG] market_amount sample (元): {market_amount[-1] if market_amount else 'empty'}", file=sys.stderr)
     except Exception as e:
         print(f"获取全市场成交额失败(tx): {e}", file=sys.stderr)
 
